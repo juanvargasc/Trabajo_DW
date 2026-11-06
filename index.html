@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cliente de Pruebas - Servidor de Personas en Memoria</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="main-header">
+      <div class="tag">Cliente REST • Almacenamiento en Memoria</div>
+      <h1>Gestión de Personas</h1>
+      <p class="subtitle">Realiza peticiones HTTP (GET, POST, PUT, DELETE) al servidor en memoria.</p>
+    </header>
+
+    <!-- Resumen de Métricas -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <span class="metric-title">Personas registradas</span>
+        <span class="metric-number" id="metricTotal">0</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-title">Edad promedio</span>
+        <span class="metric-number" id="metricAvg">-</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-title">Sesión JWT</span>
+        <span class="metric-number metric-status" id="sessionStatus">No autenticado</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-title">Última petición HTTP</span>
+        <span class="metric-number metric-status" id="metricStatus">Ninguna</span>
+      </div>
+    </div>
+
+    <!-- Barra de Autenticación / Login con JWT -->
+    <section class="card auth-card">
+      <div class="card-header">
+        <div>
+          <h2>Autenticación con JWT (Encriptado con bcrypt)</h2>
+          <span class="subtitle-card">Regístrate o inicia sesión para obtener un JSON Web Token</span>
+        </div>
+        <div id="authActiveUser" style="display: none;" class="auth-active-user">
+          Conectado como: <strong id="loggedUsername"></strong>
+          <button type="button" id="logoutBtn" class="btn btn-sm btn-delete">Cerrar Sesión</button>
+        </div>
+      </div>
+
+      <div id="authFormsContainer" class="auth-forms-grid">
+        <!-- Formulario Registro -->
+        <form id="registerForm" class="auth-form" novalidate>
+          <h3>Registrar Usuario</h3>
+          <div class="form-group">
+            <label for="regUsername">Usuario:</label>
+            <input type="text" id="regUsername" placeholder="Ej. admin" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="regPassword">Contraseña:</label>
+            <input type="password" id="regPassword" placeholder="Mínimo 4 caracteres" required autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn btn-secondary full-width">Registrar (Hash bcrypt)</button>
+        </form>
+
+        <!-- Formulario Login -->
+        <form id="loginForm" class="auth-form" novalidate>
+          <h3>Iniciar Sesión</h3>
+          <div class="form-group">
+            <label for="loginUsername">Usuario:</label>
+            <input type="text" id="loginUsername" placeholder="Ej. admin" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Contraseña:</label>
+            <input type="password" id="loginPassword" placeholder="Tu contraseña" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary full-width">Iniciar Sesión (Obtener JWT)</button>
+        </form>
+      </div>
+
+      <div class="token-display-box" id="tokenBox" style="display: none;">
+        <div class="token-header">
+          <strong>Token JWT Activo:</strong>
+          <button type="button" id="checkProfileBtn" class="btn btn-sm btn-action">Validar Token (/auth/perfil)</button>
+        </div>
+        <code id="tokenValue"></code>
+      </div>
+    </section>
+
+    <div class="main-layout">
+      <!-- Columna Izquierda: Formulario (POST / PUT) y Búsquedas (GET) -->
+      <div class="controls-column">
+        
+        <!-- Tarjeta de Registro y Edición -->
+        <section class="card form-card">
+          <div class="card-header">
+            <h2 id="formTitle">Registrar Persona</h2>
+            <span class="method-badge method-post" id="formMethodBadge">POST</span>
+          </div>
+
+          <form id="personaForm" novalidate>
+            <input type="hidden" id="isEditing" value="false">
+
+            <div class="form-group">
+              <label for="identificacion">Identificación:</label>
+              <input 
+                type="text" 
+                id="identificacion" 
+                placeholder="Ej. 10203040" 
+                required 
+                autocomplete="off"
+              >
+              <small class="hint">Identificador único (no editable al actualizar).</small>
+            </div>
+
+            <div class="form-group">
+              <label for="nombre">Nombre Completo:</label>
+              <input 
+                type="text" 
+                id="nombre" 
+                placeholder="Ej. Juan Carlos Pérez" 
+                required 
+                autocomplete="name"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="edad">Edad:</label>
+              <input 
+                type="number" 
+                id="edad" 
+                min="0" 
+                max="120" 
+                placeholder="Ej. 25" 
+                required
+              >
+            </div>
+
+            <div class="form-buttons">
+              <button type="submit" id="submitBtn" class="btn btn-primary">
+                Guardar Persona (POST)
+              </button>
+              <button type="button" id="cancelEditBtn" class="btn btn-secondary" style="display: none;">
+                Cancelar Edición
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Tarjeta de Búsqueda y Filtros Específicos -->
+        <section class="card search-card">
+          <div class="card-header">
+            <h2>Búsquedas Específicas</h2>
+            <span class="method-badge method-get">GET</span>
+          </div>
+
+          <!-- Buscar por ID -->
+          <div class="search-block">
+            <label for="searchIdInput">Buscar por Identificación específica (<code>/personas/:id</code>):</label>
+            <div class="inline-input-group">
+              <input type="text" id="searchIdInput" placeholder="Ej. 10203040" autocomplete="off">
+              <button type="button" id="searchIdBtn" class="btn btn-action">Buscar ID</button>
+            </div>
+          </div>
+
+          <!-- Filtrar por Nombre -->
+          <div class="search-block">
+            <label for="searchNombreInput">Filtrar por Nombre específico (<code>/personas/nombre/:nombre</code>):</label>
+            <div class="inline-input-group">
+              <input type="text" id="searchNombreInput" placeholder="Ej. Carlos" autocomplete="off">
+              <button type="button" id="searchNombreBtn" class="btn btn-action">Filtrar Nombre</button>
+            </div>
+          </div>
+
+          <div class="reset-block">
+            <button type="button" id="viewAllBtn" class="btn btn-secondary full-width">
+              ↻ Cargar Todas las Personas (GET /personas)
+            </button>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Columna Derecha: Tabla de Resultados y Consola de Respuesta -->
+      <div class="data-column">
+        
+        <!-- Tarjeta de Lista en Memoria -->
+        <section class="card table-card">
+          <div class="card-header">
+            <div>
+              <h2>Personas en Memoria</h2>
+              <span class="subtitle-card" id="listSubtitle">Mostrando registros actuales</span>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="persons-table">
+              <thead>
+                <tr>
+                  <th>Identificación</th>
+                  <th>Nombre</th>
+                  <th>Edad</th>
+                  <th class="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody">
+                <tr class="empty-row">
+                  <td colspan="4">Cargando personas desde el servidor...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Tarjeta Visor de Respuesta del Servidor (Consola) -->
+        <section class="card console-card">
+          <div class="card-header">
+            <div>
+              <h2>Consola de Respuestas HTTP</h2>
+              <span class="subtitle-card">Observa en tiempo real la respuesta devuelta por el backend</span>
+            </div>
+            <button type="button" id="clearConsoleBtn" class="btn btn-sm btn-ghost">Limpiar</button>
+          </div>
+
+          <div class="response-status-bar" id="responseStatusBar">
+            <span class="pill method-pill" id="lastMethod">GET</span>
+            <span class="url-pill" id="lastUrl">/personas</span>
+            <span class="pill status-pill status-ok" id="lastStatusCode">200 OK</span>
+            <span class="time-pill" id="lastTime">0 ms</span>
+          </div>
+
+          <pre class="json-viewer" id="jsonViewer"><code>// Las respuestas del servidor en formato JSON se mostrarán aquí...</code></pre>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenedor de Alertas Toast -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
