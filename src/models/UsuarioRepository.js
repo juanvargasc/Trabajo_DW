@@ -1,56 +1,72 @@
+const db = require('../config/database');
 const Usuario = require('./Usuario');
 
 /**
- * Repositorio de Usuarios (POO - Capa de Modelo / Persistencia en Memoria)
+ * Repositorio de Usuarios (POO - Persistencia en MySQL)
  */
 class UsuarioRepository {
-  constructor() {
-    /** @type {Usuario[]} */
-    this.usuarios = [];
+  constructor(database = db) {
+    this.db = database;
   }
 
   /**
-   * Busca un usuario por su nombre de usuario
+   * Busca un usuario por su nombre de usuario en MySQL
    * @param {string} username
-   * @returns {Usuario|undefined}
+   * @returns {Promise<Usuario|null>}
    */
-  findByUsername(username) {
+  async findByUsername(username) {
     const normalizado = String(username).trim().toLowerCase();
-    return this.usuarios.find((u) => u.username === normalizado);
+    const [rows] = await this.db.query(
+      'SELECT id, username, password_hash FROM usuarios WHERE username = ? LIMIT 1',
+      [normalizado]
+    );
+
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    return new Usuario(row.id, row.username, row.password_hash);
   }
 
   /**
-   * Verifica si un nombre de usuario ya está registrado
+   * Verifica si un nombre de usuario ya está registrado en MySQL
    * @param {string} username
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
-  existsByUsername(username) {
+  async existsByUsername(username) {
     const normalizado = String(username).trim().toLowerCase();
-    return this.usuarios.some((u) => u.username === normalizado);
+    const [rows] = await this.db.query(
+      'SELECT 1 FROM usuarios WHERE username = ? LIMIT 1',
+      [normalizado]
+    );
+    return rows.length > 0;
   }
 
   /**
-   * Registra un nuevo usuario en memoria
+   * Registra un nuevo usuario en la base de datos MySQL
    * @param {string} username
    * @param {string} passwordHash
-   * @returns {Usuario}
+   * @returns {Promise<Usuario>}
    */
-  create(username, passwordHash) {
+  async create(username, passwordHash) {
     const id = String(Date.now());
-    const nuevoUsuario = new Usuario(id, username, passwordHash);
-    this.usuarios.push(nuevoUsuario);
-    return nuevoUsuario;
+    const normalizado = String(username).trim().toLowerCase();
+
+    await this.db.query(
+      'INSERT INTO usuarios (id, username, password_hash) VALUES (?, ?, ?)',
+      [id, normalizado, passwordHash]
+    );
+
+    return new Usuario(id, normalizado, passwordHash);
   }
 
   /**
-   * Retorna la lista de usuarios
-   * @returns {Usuario[]}
+   * Retorna la lista de usuarios desde MySQL
+   * @returns {Promise<Usuario[]>}
    */
-  findAll() {
-    return [...this.usuarios];
+  async findAll() {
+    const [rows] = await this.db.query('SELECT id, username, password_hash FROM usuarios');
+    return rows.map((row) => new Usuario(row.id, row.username, row.password_hash));
   }
 }
 
-// Instancia singleton para compartir memoria entre peticiones
+// Instancia singleton
 module.exports = new UsuarioRepository();
-

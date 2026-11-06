@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const database = require('./config/database');
 const personaRoutes = require('./routes/persona.routes');
 const authRoutes = require('./routes/auth.routes');
 
@@ -11,6 +12,7 @@ class App {
   constructor(port = process.env.PORT || 3000) {
     this.app = express();
     this.port = port;
+    this.database = database;
 
     this.configureMiddlewares();
     this.configureRoutes();
@@ -52,11 +54,14 @@ class App {
   }
 
   /**
-   * Inicia la escucha del servidor HTTP
+   * Inicializa la conexión a MySQL e inicia la escucha del servidor HTTP
    * @param {number} [port]
    * @param {() => void} [callback]
    */
-  listen(port = this.port, callback) {
+  async listen(port = this.port, callback) {
+    // Inicializar base de datos MySQL (crear base y tablas si no existen)
+    await this.database.init();
+
     return this.app.listen(port, () => {
       if (callback) {
         callback();
@@ -85,4 +90,3 @@ class App {
 }
 
 module.exports = App;
-

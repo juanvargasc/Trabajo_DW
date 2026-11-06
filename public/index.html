@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cliente de Pruebas - Servidor de Personas en Memoria</title>
+  <title>Cliente de Pruebas - Servidor de Personas con MySQL</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-container">
     <header class="main-header">
-      <div class="tag">Cliente REST • Almacenamiento en Memoria</div>
+      <div class="tag">Cliente REST • Base de Datos MySQL</div>
       <h1>Gestión de Personas</h1>
-      <p class="subtitle">Realiza peticiones HTTP (GET, POST, PUT, DELETE) al servidor en memoria.</p>
+      <p class="subtitle">Realiza peticiones HTTP (GET, POST, PUT, DELETE) conectadas al motor MySQL.</p>
     </header>
 
     <!-- Resumen de Métricas -->
@@ -183,11 +183,11 @@
       <!-- Columna Derecha: Tabla de Resultados y Consola de Respuesta -->
       <div class="data-column">
         
-        <!-- Tarjeta de Lista en Memoria -->
+        <!-- Tarjeta de Lista en Base de Datos -->
         <section class="card table-card">
           <div class="card-header">
             <div>
-              <h2>Personas en Memoria</h2>
+              <h2>Personas en Base de Datos (MySQL)</h2>
               <span class="subtitle-card" id="listSubtitle">Mostrando registros actuales</span>
             </div>
           </div>

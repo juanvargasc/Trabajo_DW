@@ -3,7 +3,7 @@ const usuarioRepository = require('../models/UsuarioRepository');
 const Usuario = require('../models/Usuario');
 
 /**
- * Controlador de Autenticación (POO - Controlador MVC)
+ * Controlador de Autenticación (POO - Controlador MVC con MySQL)
  */
 class AuthController {
   constructor(
@@ -32,7 +32,8 @@ class AuthController {
       const { username, password } = req.body;
       const usernameNormalizado = username.trim().toLowerCase();
 
-      if (this.repository.existsByUsername(usernameNormalizado)) {
+      const existe = await this.repository.existsByUsername(usernameNormalizado);
+      if (existe) {
         return res.status(409).json({
           error: 'Usuario ya registrado',
           mensaje: `El usuario "${usernameNormalizado}" ya existe`
@@ -40,7 +41,7 @@ class AuthController {
       }
 
       const passwordHash = await Usuario.hashPassword(password);
-      const nuevoUsuario = this.repository.create(usernameNormalizado, passwordHash);
+      const nuevoUsuario = await this.repository.create(usernameNormalizado, passwordHash);
 
       res.status(201).json({
         mensaje: 'Usuario registrado exitosamente con contraseña encriptada',
@@ -50,7 +51,8 @@ class AuthController {
         }
       });
     } catch (error) {
-      res.status(500).json({ error: 'Error en el servidor al registrar usuario' });
+      console.error('Error en AuthController.register:', error);
+      res.status(500).json({ error: 'Error en el servidor al registrar usuario', detalle: error.message });
     }
   }
 
@@ -65,7 +67,7 @@ class AuthController {
         return res.status(400).json({ error: 'Debes enviar "username" y "password"' });
       }
 
-      const usuario = this.repository.findByUsername(username);
+      const usuario = await this.repository.findByUsername(username);
       if (!usuario) {
         return res.status(401).json({
           error: 'Credenciales inválidas',
@@ -97,7 +99,8 @@ class AuthController {
         }
       });
     } catch (error) {
-      res.status(500).json({ error: 'Error en el servidor durante el login' });
+      console.error('Error en AuthController.login:', error);
+      res.status(500).json({ error: 'Error en el servidor durante el login', detalle: error.message });
     }
   }
 
@@ -113,4 +116,3 @@ class AuthController {
 }
 
 module.exports = new AuthController();
-
